@@ -93,14 +93,14 @@ for file_path in matched_files:
     resolution = subprocess.check_output(identify_command, shell=True).decode().strip()
     width, height = map(int, resolution.split('x'))
     def conversion_with_replace(width, height, min_resolution, min_resolution_input, quality, file_path):
-        if width > min_resolution[0] and height > min_resolution[1]:
+        if width >= min_resolution[0] and height >= min_resolution[1]:
             os.system(f'convert -resize {min_resolution_input} -quality {quality}% {file_path} {file_path}')
             os.system(f'echo "{current_date}: Dokonano konwersji {file_path} i nadpisano plik." >> {logs_pass}')
         else:
             os.system(f'echo "{current_date}: Nie dokonano konwersji {file_path} - plik nie spełnia wymagań." >> {logs_unchanged}')
 
     def conversion_with_suffix(width, height, min_resolution, min_resolution_input, quality, file_path, suffix):
-        if width > min_resolution[0] and height > min_resolution[1]:
+        if width >= min_resolution[0] and height >= min_resolution[1]:
             os.system(f'convert -resize {min_resolution_input} -quality {quality}% {file_path} {file_path}{suffix}')
             os.system(f'echo "{current_date}: Dokonano konwersji {file_path} do {file_path}{suffix}" >> {logs_pass}')
         else:
