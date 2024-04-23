@@ -83,10 +83,10 @@ for file_path in matched_files:
             os.system(f'echo "{current_date}: {file_path} jest uszkodzony." >> {logs_unchanged}')
             return False
 
-if jpg_checker(file_path):
-    pass
-else:
-    matched_files.remove(file_path)
+    if jpg_checker(file_path):
+        pass
+    else:
+         matched_files.remove(file_path)
 
 for file_path in matched_files:
     identify_command = f'identify -format "%wx%h" "{file_path}"'
