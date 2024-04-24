@@ -66,7 +66,7 @@ current_date = time.ctime(timestamp)
 os.system(f'touch -t {year}01010000 /tmp/{year}-Jan-01-0000')
 
 # Lista zdjęć
-matched_files_command = f'find {path} -type f \( -iname "*.jpeg" -o -iname "*.jpg" \) ! -newer /tmp/{year}-Jan-01-0000 -print'
+matched_files_command = f'find {path} -type f \( -iname "*.jpeg" -o -iname "*.jpg" -o -iname "*.png" \) ! -newer /tmp/{year}-Jan-01-0000 -print'
 matched_files = subprocess.check_output(matched_files_command, shell=True)
 
 matched_files = matched_files.decode().splitlines()
@@ -86,7 +86,7 @@ for file_path in matched_files:
     if jpg_checker(file_path):
         pass
     else:
-         matched_files.remove(file_path)
+        matched_files.remove(file_path)
 
 for file_path in matched_files:
     identify_command = f'identify -format "%wx%h" "{file_path}"'
@@ -94,17 +94,23 @@ for file_path in matched_files:
     width, height = map(int, resolution.split('x'))
     def conversion_with_replace(width, height, min_resolution, min_resolution_input, quality, file_path):
         if width >= min_resolution[0] and height >= min_resolution[1]:
-            os.system(f'convert -resize {min_resolution_input} -quality {quality}% {file_path} {file_path}')
+            os.system(f'convert -resize "{min_resolution_input}^" -quality {quality}% {file_path} {file_path}')
             os.system(f'echo "{current_date}: Dokonano konwersji {file_path} i nadpisano plik." >> {logs_pass}')
+        elif width < min_resolution[0] and height < min_resolution[1]:
+            os.system(f'convert -quality {quality}% {file_path} {file_path}')
+            os.system(f'echo "{current_date}: Dokonano konwersji {file_path} i nadpisano plik (bez zmiany rozmiarów)." >> {logs_pass}')
         else:
-            os.system(f'echo "{current_date}: Nie dokonano konwersji {file_path} - plik nie spełnia wymagań." >> {logs_unchanged}')
+            os.system(f'echo "{current_date}: Nie dokonano konwersji {file_path} - plik nie spełnia wymagań rozmiarowych." >> {logs_unchanged}')
 
     def conversion_with_suffix(width, height, min_resolution, min_resolution_input, quality, file_path, suffix):
         if width >= min_resolution[0] and height >= min_resolution[1]:
-            os.system(f'convert -resize {min_resolution_input} -quality {quality}% {file_path} {file_path}{suffix}')
+            os.system(f'convert -resize "{min_resolution_input}^" -quality {quality}% {file_path} {file_path}{suffix}')
             os.system(f'echo "{current_date}: Dokonano konwersji {file_path} do {file_path}{suffix}" >> {logs_pass}')
+        elif width < min_resolution[0] and height < min_resolution[1]:
+            os.system(f'convert -quality {quality}% {file_path} {file_path}{suffix}')
+            os.system(f'echo "{current_date}: Dokonano konwersji {file_path} do {file_path}{suffix} (bez zmiany rozmiarów)" >> {logs_pass}')
         else:
-            os.system(f'echo "{current_date}: Nie dokonano konwersji {file_path} - plik nie spełnia wymagań." >> {logs_unchanged}')
+            os.system(f'echo "{current_date}: Nie dokonano konwersji {file_path} - plik nie spełnia wymagań rozmiarowych." >> {logs_unchanged}')
 
     if replace == 1:
         conversion_with_replace(width, height, min_resolution, min_resolution_input, quality, file_path)
