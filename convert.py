@@ -17,7 +17,7 @@ logs_unchanged = '/var/log/conversion_log_unchanged'
 
 # Zmienne do obsługi weryfikacji i instalacji paczki
 package = 'ImageMagick'
-install_package = 'yum install -y ImageMagick ImageMagick-devel'
+install_package = 'yum install -y ImageMagick ImageMagick-devel >/dev/null 2>&1'
 
 # Weryfikacja, czy paczka jest zainstalowana
 spec = importlib.util.find_spec(package)
