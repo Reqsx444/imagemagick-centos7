@@ -96,7 +96,7 @@ for file_path in matched_files:
         if width >= min_resolution[0] and height >= min_resolution[1]:
             os.system(f'convert -resize "{min_resolution_input}^" -quality {quality}% {file_path} {file_path}')
             os.system(f'echo "{current_date}: Dokonano konwersji {file_path} i nadpisano plik." >> {logs_pass}')
-        elif width < min_resolution[0] and height < min_resolution[1]:
+        elif width < min_resolution[0] or height < min_resolution[1]:
             os.system(f'convert -quality {quality}% {file_path} {file_path}')
             os.system(f'echo "{current_date}: Dokonano konwersji {file_path} i nadpisano plik (bez zmiany rozmiarów)." >> {logs_pass}')
         else:
@@ -106,7 +106,7 @@ for file_path in matched_files:
         if width >= min_resolution[0] and height >= min_resolution[1]:
             os.system(f'convert -resize "{min_resolution_input}^" -quality {quality}% {file_path} {file_path}{suffix}')
             os.system(f'echo "{current_date}: Dokonano konwersji {file_path} do {file_path}{suffix}" >> {logs_pass}')
-        elif width < min_resolution[0] and height < min_resolution[1]:
+        elif width < min_resolution[0] or height < min_resolution[1]:
             os.system(f'convert -quality {quality}% {file_path} {file_path}{suffix}')
             os.system(f'echo "{current_date}: Dokonano konwersji {file_path} do {file_path}{suffix} (bez zmiany rozmiarów)" >> {logs_pass}')
         else:
