@@ -1,19 +1,32 @@
-#pip install Pillow - żeby zainstalować moduł PIL
 # Importowanie wymaganych bibliotek
 import os
 import time
+import imghdr
 import argparse
 import subprocess
 import importlib.util
-from PIL import Image
+from PIL import Image # type: ignore
 from pathlib import Path
 from datetime import datetime
 
-# Przygotowanie katalogu z logami
-Path('/var/log/conversion_log_pass').touch()
-Path('/var/log/conversion_log_unchanged').touch()
-logs_pass = '/var/log/conversion_log_pass'
-logs_unchanged = '/var/log/conversion_log_unchanged'
+# Wyczyszczenie logów sprawdzających z poprzedniego run'a
+os.system(f'rm -rf /var/log/conversion/logs_date_verification')
+os.system(f'rm -rf /var/log/conversion/logs_accuracy_verification')
+os.system(f'rm -rf /var/log/conversion/logs_resolution_verification')
+
+# Przygotowanie katalogów z logami
+if not os.path.exists('/var/log/conversion'):
+    os.makedirs('/var/log/conversion')
+Path('/var/log/conversion/logs_pass').touch()
+Path('/var/log/conversion/logs_unchanged').touch()
+Path('/var/log/conversion/logs_date_verification').touch()
+Path('/var/log/conversion/logs_accuracy_verification').touch()
+Path('/var/log/conversion/logs_resolution_verification').touch()
+logs_pass = '/var/log/conversion/logs_pass'
+logs_unchanged = '/var/log/conversion/logs_unchanged'
+logs_date = '/var/log/conversion/logs_date_verification'
+logs_acc = '/var/log/conversion/logs_accuracy_verification'
+logs_res = '/var/log/conversion/logs_resolution_verification'
 
 # Zmienne do obsługi weryfikacji i instalacji paczki
 package = 'ImageMagick'
@@ -34,6 +47,7 @@ parser.add_argument("-r", "--min_resolution_input", help="Target resolution")
 parser.add_argument("-c", "--replace", help="Override file (1=Yes 0=No)", default = 1, type=int)
 parser.add_argument("-s", "--suffix", help="Add suffix to converted image")
 parser.add_argument("-p", "--path", help="Path to dir")
+parser.add_argument("-d", "--dryrun", help="Run in test mode (1=Yes 0=No)", default = 0, type=int)
 
 args = parser.parse_args()
 
@@ -43,6 +57,7 @@ min_resolution_input = args.min_resolution_input
 replace = args.replace
 suffix = args.suffix
 path = args.path
+dryrun= args.dryrun
 
 # Zapytania do klienta, jeśli flagi nie zostały podane
 if quality and year and path and min_resolution_input:
@@ -62,30 +77,48 @@ else:
 timestamp = time.time()
 current_date = time.ctime(timestamp)
 
-# Konfiguracja datay do wyszukiwania zdjęć
+# Konfiguracja daty do wyszukiwania zdjęć
 os.system(f'touch -t {year}01010000 /tmp/{year}-Jan-01-0000')
 
-# Lista zdjęć
+ # Lista zdjęć
 matched_files_command = f'find {path} -type f \( -iname "*.jpeg" -o -iname "*.jpg" -o -iname "*.png" \) ! -newer /tmp/{year}-Jan-01-0000 -print'
 matched_files = subprocess.check_output(matched_files_command, shell=True)
 
+# Import listy zakwalifikowanych po dacie i nazwie plików do loga
+os.system(f'{matched_files_command} >> {logs_date}')
+
+# Sortowanie listy
 matched_files = matched_files.decode().splitlines()
 
 # Uruchomienie polecenia convert dla każdego elemantu
-for file_path in matched_files:
-
-    def jpg_checker(file_path):
-        try:
-            img = Image.open(file_path)
+def image_validator(file_path):
+    try:
+        with Image.open(file_path) as img:
             img.verify()
-            return True
-        except (IOError, SyntaxError):
-            os.system(f'echo "{current_date}: {file_path} jest uszkodzony." >> {logs_unchanged}')
-            return False
+        return True
+    except (IOError, SyntaxError):
+        os.system(f'echo "{current_date}: {file_path} jest uszkodzony." >> {logs_unchanged}')
+        return False
 
-    if jpg_checker(file_path):
-        pass
+def image_type_checker(file_path):
+    image_type = imghdr.what(file_path)
+    if image_type in ["jpeg", "png"]:
+        return True
     else:
+        os.system(f'echo "{current_date}: {file_path} jest uszkodzony." >> {logs_unchanged}')
+        return False
+
+matched_files_copy = matched_files.copy()
+
+for file_path in matched_files_copy:
+    if image_type_checker(file_path):
+        if image_validator(file_path):
+            os.system(f'echo "{file_path} OK." >> {logs_acc}')
+        else:
+            os.system(f'echo "{file_path} USZKODZONY." >> {logs_acc}')
+            matched_files.remove(file_path)
+    else:
+        os.system(f'echo "{file_path} NIEOBRAZKOWY" >> {logs_acc}')
         matched_files.remove(file_path)
 
 for file_path in matched_files:
@@ -96,25 +129,62 @@ for file_path in matched_files:
         if width >= min_resolution[0] and height >= min_resolution[1]:
             os.system(f'convert -resize "{min_resolution_input}^" -quality {quality}% {file_path} {file_path}')
             os.system(f'echo "{current_date}: Dokonano konwersji {file_path} i nadpisano plik." >> {logs_pass}')
+            os.system(f'echo "{file_path} Zmiana rozmiaru i jakości" >> {logs_res}')
         elif width < min_resolution[0] or height < min_resolution[1]:
             os.system(f'convert -quality {quality}% {file_path} {file_path}')
             os.system(f'echo "{current_date}: Dokonano konwersji {file_path} i nadpisano plik (bez zmiany rozmiarów)." >> {logs_pass}')
+            os.system(f'echo "{file_path} Zmiana jakości" >> {logs_res}')
         else:
             os.system(f'echo "{current_date}: Nie dokonano konwersji {file_path} - plik nie spełnia wymagań rozmiarowych." >> {logs_unchanged}')
+            os.system(f'echo "{file_path} Brak zmian" >> {logs_res}')
 
     def conversion_with_suffix(width, height, min_resolution, min_resolution_input, quality, file_path, suffix):
         if width >= min_resolution[0] and height >= min_resolution[1]:
             os.system(f'convert -resize "{min_resolution_input}^" -quality {quality}% {file_path} {file_path}{suffix}')
             os.system(f'echo "{current_date}: Dokonano konwersji {file_path} do {file_path}{suffix}" >> {logs_pass}')
+            os.system(f'echo "{file_path} Zmiana rozmiaru i jakości" >> {logs_res}')
         elif width < min_resolution[0] or height < min_resolution[1]:
             os.system(f'convert -quality {quality}% {file_path} {file_path}{suffix}')
             os.system(f'echo "{current_date}: Dokonano konwersji {file_path} do {file_path}{suffix} (bez zmiany rozmiarów)" >> {logs_pass}')
+            os.system(f'echo "{file_path} Zmiana jakości" >> {logs_res}')
         else:
             os.system(f'echo "{current_date}: Nie dokonano konwersji {file_path} - plik nie spełnia wymagań rozmiarowych." >> {logs_unchanged}')
+            os.system(f'echo "{file_path} Brak zmian" >> {logs_res}')
 
-    if replace == 1:
+    def conversion_with_replace_dry_run(width, height, min_resolution, min_resolution_input, quality, file_path):
+        if width >= min_resolution[0] and height >= min_resolution[1]:
+            os.system(f'echo "{current_date}: Dokonano konwersji {file_path} i nadpisano plik." >> {logs_pass}')
+            os.system(f'echo "{file_path} Zmiana rozmiaru i jakości" >> {logs_res}')
+        elif width < min_resolution[0] or height < min_resolution[1]:
+            os.system(f'echo "{current_date}: Dokonano konwersji {file_path} i nadpisano plik (bez zmiany rozmiarów)." >> {logs_pass}')
+            os.system(f'echo "{file_path} Zmiana jakości" >> {logs_res}')
+        else:
+            os.system(f'echo "{current_date}: Nie dokonano konwersji {file_path} - plik nie spełnia wymagań rozmiarowych." >> {logs_unchanged}')
+            os.system(f'echo "{file_path} Brak zmian" >> {logs_res}')
+
+    def conversion_with_suffix_dry_run(width, height, min_resolution, min_resolution_input, quality, file_path, suffix):
+        if width >= min_resolution[0] and height >= min_resolution[1]:
+            os.system(f'echo "{current_date}: Dokonano konwersji {file_path} do {file_path}{suffix}" >> {logs_pass}')
+            os.system(f'echo "{file_path} Zmiana rozmiaru i jakości" >> {logs_res}')
+        elif width < min_resolution[0] or height < min_resolution[1]:
+            os.system(f'echo "{current_date}: Dokonano konwersji {file_path} do {file_path}{suffix} (bez zmiany rozmiarów)" >> {logs_pass}')
+            os.system(f'echo "{file_path} Zmiana jakości" >> {logs_res}')
+        else:
+            os.system(f'echo "{current_date}: Nie dokonano konwersji {file_path} - plik nie spełnia wymagań rozmiarowych." >> {logs_unchanged}')
+            os.system(f'echo "{file_path} Brak zmian" >> {logs_res}')
+
+    if replace == 1 and dryrun == 0:
         conversion_with_replace(width, height, min_resolution, min_resolution_input, quality, file_path)
-    else:
+    elif replace == 0 and dryrun == 0:
         conversion_with_suffix(width, height, min_resolution, min_resolution_input, quality, file_path, suffix)
+    elif replace == 1 and dryrun == 1:
+        conversion_with_replace_dry_run(width, height, min_resolution, min_resolution_input, quality, file_path)
+    elif replace == 0 and dryrun == 1:
+        conversion_with_suffix_dry_run(width, height, min_resolution, min_resolution_input, quality, file_path, suffix)
+    else:
+        print('Niepoprawny argument dla --replace')
 
 os.system(f'rm -rf /tmp/{year}-Jan-01-0000')
+
+
+#dry run: python3 /conversion.py -r 1x1 -q 75 -y 2024 -p /testyjpg -d 1
