@@ -121,17 +121,23 @@ for file_path in matched_files_copy:
         os.system(f'echo "{file_path} NIEOBRAZKOWY" >> {logs_acc}')
         matched_files.remove(file_path)
 
+modification_time = 0
+
 for file_path in matched_files:
     identify_command = f'identify -format "%wx%h" "{file_path}"'
     resolution = subprocess.check_output(identify_command, shell=True).decode().strip()
     width, height = map(int, resolution.split('x'))
-    def conversion_with_replace(width, height, min_resolution, min_resolution_input, quality, file_path):
+    def conversion_with_replace(width, height, min_resolution, min_resolution_input, quality, file_path, modification_time):
         if width >= min_resolution[0] and height >= min_resolution[1]:
+            modification_time = os.path.getmtime(file_path)
             os.system(f'convert -resize "{min_resolution_input}^" -quality {quality}% {file_path} {file_path}')
+            os.utime(file_path, (modification_time, modification_time))
             os.system(f'echo "{current_date}: Dokonano konwersji {file_path} i nadpisano plik." >> {logs_pass}')
             os.system(f'echo "{file_path} Zmiana rozmiaru i jakości" >> {logs_res}')
         elif width < min_resolution[0] or height < min_resolution[1]:
+            modification_time = os.path.getmtime(file_path)
             os.system(f'convert -quality {quality}% {file_path} {file_path}')
+            os.utime(file_path, (modification_time, modification_time))
             os.system(f'echo "{current_date}: Dokonano konwersji {file_path} i nadpisano plik (bez zmiany rozmiarów)." >> {logs_pass}')
             os.system(f'echo "{file_path} Zmiana jakości" >> {logs_res}')
         else:
@@ -151,9 +157,11 @@ for file_path in matched_files:
             os.system(f'echo "{current_date}: Nie dokonano konwersji {file_path} - plik nie spełnia wymagań rozmiarowych." >> {logs_unchanged}')
             os.system(f'echo "{file_path} Brak zmian" >> {logs_res}')
 
-    def conversion_with_replace_dry_run(width, height, min_resolution, min_resolution_input, quality, file_path):
+    def conversion_with_replace_dry_run(width, height, min_resolution, min_resolution_input, quality, file_path, modification_time):
         if width >= min_resolution[0] and height >= min_resolution[1]:
+            modification_time = os.path.getmtime(file_path)
             os.system(f'echo "{current_date}: Dokonano konwersji {file_path} i nadpisano plik." >> {logs_pass}')
+            os.utime(file_path, (modification_time, modification_time))
             os.system(f'echo "{file_path} Zmiana rozmiaru i jakości" >> {logs_res}')
         elif width < min_resolution[0] or height < min_resolution[1]:
             os.system(f'echo "{current_date}: Dokonano konwersji {file_path} i nadpisano plik (bez zmiany rozmiarów)." >> {logs_pass}')
@@ -174,17 +182,14 @@ for file_path in matched_files:
             os.system(f'echo "{file_path} Brak zmian" >> {logs_res}')
 
     if replace == 1 and dryrun == 0:
-        conversion_with_replace(width, height, min_resolution, min_resolution_input, quality, file_path)
+        conversion_with_replace(width, height, min_resolution, min_resolution_input, quality, file_path, modification_time)
     elif replace == 0 and dryrun == 0:
         conversion_with_suffix(width, height, min_resolution, min_resolution_input, quality, file_path, suffix)
     elif replace == 1 and dryrun == 1:
-        conversion_with_replace_dry_run(width, height, min_resolution, min_resolution_input, quality, file_path)
+        conversion_with_replace_dry_run(width, height, min_resolution, min_resolution_input, quality, file_path, modification_time)
     elif replace == 0 and dryrun == 1:
         conversion_with_suffix_dry_run(width, height, min_resolution, min_resolution_input, quality, file_path, suffix)
     else:
         print('Niepoprawny argument dla --replace')
 
 os.system(f'rm -rf /tmp/{year}-Jan-01-0000')
-
-
-#dry run: python3 /conversion.py -r 1x1 -q 75 -y 2024 -p /testyjpg -d 1
