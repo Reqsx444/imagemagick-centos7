@@ -1,6 +1,7 @@
 # Importowanie wymaganych bibliotek
 import os
 import time
+import shlex
 import imghdr
 import argparse
 import subprocess
@@ -110,7 +111,7 @@ def image_type_checker(file_path):
 
 matched_files_copy = matched_files.copy()
 
-for file_path in matched_files_copy:
+for file_path in matched_files:
     if image_type_checker(file_path):
         if image_validator(file_path):
             os.system(f'echo "{file_path} OK." >> {logs_acc}')
@@ -124,39 +125,39 @@ for file_path in matched_files_copy:
 modification_time = 0
 
 for file_path in matched_files:
-    identify_command = f'identify -format "%wx%h" "{file_path}"'
+    identify_command = f'identify -format "%wx%h" {shlex.quote(file_path)}'
     resolution = subprocess.check_output(identify_command, shell=True).decode().strip()
     width, height = map(int, resolution.split('x'))
     def conversion_with_replace(width, height, min_resolution, min_resolution_input, quality, file_path, modification_time):
         if width >= min_resolution[0] and height >= min_resolution[1]:
             modification_time = os.path.getmtime(file_path)
-            os.system(f'convert -resize "{min_resolution_input}^" -quality {quality}% {file_path} {file_path}')
+            subprocess.run(['convert', '-resize', f'{min_resolution_input}>', '-quality', f'{quality}%', file_path, file_path])
             os.utime(file_path, (modification_time, modification_time))
             os.system(f'echo "{current_date}: Dokonano konwersji {file_path} i nadpisano plik." >> {logs_pass}')
             os.system(f'echo "{file_path} Zmiana rozmiaru i jakości" >> {logs_res}')
         elif width < min_resolution[0] or height < min_resolution[1]:
             modification_time = os.path.getmtime(file_path)
-            os.system(f'convert -quality {quality}% {file_path} {file_path}')
+            subprocess.run(['convert', '-quality', f'{quality}%', file_path, file_path])
             os.utime(file_path, (modification_time, modification_time))
             os.system(f'echo "{current_date}: Dokonano konwersji {file_path} i nadpisano plik (bez zmiany rozmiarów)." >> {logs_pass}')
             os.system(f'echo "{file_path} Zmiana jakości" >> {logs_res}')
         else:
             os.system(f'echo "{current_date}: Nie dokonano konwersji {file_path} - plik nie spełnia wymagań rozmiarowych." >> {logs_unchanged}')
             os.system(f'echo "{file_path} Brak zmian" >> {logs_res}')
-
+    
     def conversion_with_suffix(width, height, min_resolution, min_resolution_input, quality, file_path, suffix):
         if width >= min_resolution[0] and height >= min_resolution[1]:
-            os.system(f'convert -resize "{min_resolution_input}^" -quality {quality}% {file_path} {file_path}{suffix}')
+            subprocess.run(['convert', '-resize', f'{min_resolution_input}>', '-quality', f'{quality}%', file_path, f'{file_path}{suffix}'])
             os.system(f'echo "{current_date}: Dokonano konwersji {file_path} do {file_path}{suffix}" >> {logs_pass}')
             os.system(f'echo "{file_path} Zmiana rozmiaru i jakości" >> {logs_res}')
         elif width < min_resolution[0] or height < min_resolution[1]:
-            os.system(f'convert -quality {quality}% {file_path} {file_path}{suffix}')
+            subprocess.run(['convert', '-quality', f'{quality}%', file_path, f'{file_path}{suffix}'])
             os.system(f'echo "{current_date}: Dokonano konwersji {file_path} do {file_path}{suffix} (bez zmiany rozmiarów)" >> {logs_pass}')
             os.system(f'echo "{file_path} Zmiana jakości" >> {logs_res}')
         else:
             os.system(f'echo "{current_date}: Nie dokonano konwersji {file_path} - plik nie spełnia wymagań rozmiarowych." >> {logs_unchanged}')
             os.system(f'echo "{file_path} Brak zmian" >> {logs_res}')
-
+    
     def conversion_with_replace_dry_run(width, height, min_resolution, min_resolution_input, quality, file_path, modification_time):
         if width >= min_resolution[0] and height >= min_resolution[1]:
             modification_time = os.path.getmtime(file_path)
@@ -169,7 +170,7 @@ for file_path in matched_files:
         else:
             os.system(f'echo "{current_date}: Nie dokonano konwersji {file_path} - plik nie spełnia wymagań rozmiarowych." >> {logs_unchanged}')
             os.system(f'echo "{file_path} Brak zmian" >> {logs_res}')
-
+    
     def conversion_with_suffix_dry_run(width, height, min_resolution, min_resolution_input, quality, file_path, suffix):
         if width >= min_resolution[0] and height >= min_resolution[1]:
             os.system(f'echo "{current_date}: Dokonano konwersji {file_path} do {file_path}{suffix}" >> {logs_pass}')
