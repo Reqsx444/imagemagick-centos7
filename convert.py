@@ -124,72 +124,78 @@ for file_path in matched_files_copy:
 modification_time = 0
 
 for file_path in matched_files:
-    identify_command = f'identify -format "%wx%h" "{file_path}"'
-    resolution = subprocess.check_output(identify_command, shell=True).decode().strip()
-    width, height = map(int, resolution.split('x'))
-    def conversion_with_replace(width, height, min_resolution, min_resolution_input, quality, file_path, modification_time):
-        if width >= min_resolution[0] and height >= min_resolution[1]:
-            modification_time = os.path.getmtime(file_path)
-            os.system(f'convert -resize "{min_resolution_input}^" -quality {quality}% {file_path} {file_path}')
-            os.utime(file_path, (modification_time, modification_time))
-            os.system(f'echo "{current_date}: Dokonano konwersji {file_path} i nadpisano plik." >> {logs_pass}')
-            os.system(f'echo "{file_path} Zmiana rozmiaru i jakości" >> {logs_res}')
-        elif width < min_resolution[0] or height < min_resolution[1]:
-            modification_time = os.path.getmtime(file_path)
-            os.system(f'convert -quality {quality}% {file_path} {file_path}')
-            os.utime(file_path, (modification_time, modification_time))
-            os.system(f'echo "{current_date}: Dokonano konwersji {file_path} i nadpisano plik (bez zmiany rozmiarów)." >> {logs_pass}')
-            os.system(f'echo "{file_path} Zmiana jakości" >> {logs_res}')
+    try:
+        identify_command = f'identify -format "%wx%h" "{file_path}"'
+        resolution = subprocess.check_output(identify_command, shell=True).decode().strip()
+        width, height = map(int, resolution.split('x'))
+        
+    except subprocess.CalledProcessError as e:
+        print(f'Error processing file: {file_path}. Skipping...')
+        continue
+        
+        def conversion_with_replace(width, height, min_resolution, min_resolution_input, quality, file_path, modification_time):
+            if width >= min_resolution[0] and height >= min_resolution[1]:
+                modification_time = os.path.getmtime(file_path)
+                os.system(f'convert -resize "{min_resolution_input}^" -quality {quality}% {file_path} {file_path}')
+                os.utime(file_path, (modification_time, modification_time))
+                os.system(f'echo "{current_date}: Dokonano konwersji {file_path} i nadpisano plik." >> {logs_pass}')
+                os.system(f'echo "{file_path} Zmiana rozmiaru i jakości" >> {logs_res}')
+            elif width < min_resolution[0] or height < min_resolution[1]:
+                modification_time = os.path.getmtime(file_path)
+                os.system(f'convert -quality {quality}% {file_path} {file_path}')
+                os.utime(file_path, (modification_time, modification_time))
+                os.system(f'echo "{current_date}: Dokonano konwersji {file_path} i nadpisano plik (bez zmiany rozmiarów)." >> {logs_pass}')
+                os.system(f'echo "{file_path} Zmiana jakości" >> {logs_res}')
+            else:
+                os.system(f'echo "{current_date}: Nie dokonano konwersji {file_path} - plik nie spełnia wymagań rozmiarowych." >> {logs_unchanged}')
+                os.system(f'echo "{file_path} Brak zmian" >> {logs_res}')
+
+        def conversion_with_suffix(width, height, min_resolution, min_resolution_input, quality, file_path, suffix):
+            if width >= min_resolution[0] and height >= min_resolution[1]:
+                os.system(f'convert -resize "{min_resolution_input}^" -quality {quality}% {file_path} {file_path}{suffix}')
+                os.system(f'echo "{current_date}: Dokonano konwersji {file_path} do {file_path}{suffix}" >> {logs_pass}')
+                os.system(f'echo "{file_path} Zmiana rozmiaru i jakości" >> {logs_res}')
+            elif width < min_resolution[0] or height < min_resolution[1]:
+                os.system(f'convert -quality {quality}% {file_path} {file_path}{suffix}')
+                os.system(f'echo "{current_date}: Dokonano konwersji {file_path} do {file_path}{suffix} (bez zmiany rozmiarów)" >> {logs_pass}')
+                os.system(f'echo "{file_path} Zmiana jakości" >> {logs_res}')
+            else:
+                os.system(f'echo "{current_date}: Nie dokonano konwersji {file_path} - plik nie spełnia wymagań rozmiarowych." >> {logs_unchanged}')
+                os.system(f'echo "{file_path} Brak zmian" >> {logs_res}')
+
+        def conversion_with_replace_dry_run(width, height, min_resolution, min_resolution_input, quality, file_path, modification_time):
+            if width >= min_resolution[0] and height >= min_resolution[1]:
+                modification_time = os.path.getmtime(file_path)
+                os.system(f'echo "{current_date}: Dokonano konwersji {file_path} i nadpisano plik." >> {logs_pass}')
+                os.utime(file_path, (modification_time, modification_time))
+                os.system(f'echo "{file_path} Zmiana rozmiaru i jakości" >> {logs_res}')
+            elif width < min_resolution[0] or height < min_resolution[1]:
+                os.system(f'echo "{current_date}: Dokonano konwersji {file_path} i nadpisano plik (bez zmiany rozmiarów)." >> {logs_pass}')
+                os.system(f'echo "{file_path} Zmiana jakości" >> {logs_res}')
+            else:
+                os.system(f'echo "{current_date}: Nie dokonano konwersji {file_path} - plik nie spełnia wymagań rozmiarowych." >> {logs_unchanged}')
+                os.system(f'echo "{file_path} Brak zmian" >> {logs_res}')
+
+        def conversion_with_suffix_dry_run(width, height, min_resolution, min_resolution_input, quality, file_path, suffix):
+            if width >= min_resolution[0] and height >= min_resolution[1]:
+                os.system(f'echo "{current_date}: Dokonano konwersji {file_path} do {file_path}{suffix}" >> {logs_pass}')
+                os.system(f'echo "{file_path} Zmiana rozmiaru i jakości" >> {logs_res}')
+            elif width < min_resolution[0] or height < min_resolution[1]:
+                os.system(f'echo "{current_date}: Dokonano konwersji {file_path} do {file_path}{suffix} (bez zmiany rozmiarów)" >> {logs_pass}')
+                os.system(f'echo "{file_path} Zmiana jakości" >> {logs_res}')
+            else:
+                os.system(f'echo "{current_date}: Nie dokonano konwersji {file_path} - plik nie spełnia wymagań rozmiarowych." >> {logs_unchanged}')
+                os.system(f'echo "{file_path} Brak zmian" >> {logs_res}')
+        
+        if replace == 1 and dryrun == 0:
+            conversion_with_replace(width, height, min_resolution, min_resolution_input, quality, file_path, modification_time)
+        elif replace == 0 and dryrun == 0:
+            conversion_with_suffix(width, height, min_resolution, min_resolution_input, quality, file_path, suffix)
+        elif replace == 1 and dryrun == 1:
+            conversion_with_replace_dry_run(width, height, min_resolution, min_resolution_input, quality, file_path, modification_time)
+        elif replace == 0 and dryrun == 1:
+            conversion_with_suffix_dry_run(width, height, min_resolution, min_resolution_input, quality, file_path, suffix)
         else:
-            os.system(f'echo "{current_date}: Nie dokonano konwersji {file_path} - plik nie spełnia wymagań rozmiarowych." >> {logs_unchanged}')
-            os.system(f'echo "{file_path} Brak zmian" >> {logs_res}')
-
-    def conversion_with_suffix(width, height, min_resolution, min_resolution_input, quality, file_path, suffix):
-        if width >= min_resolution[0] and height >= min_resolution[1]:
-            os.system(f'convert -resize "{min_resolution_input}^" -quality {quality}% {file_path} {file_path}{suffix}')
-            os.system(f'echo "{current_date}: Dokonano konwersji {file_path} do {file_path}{suffix}" >> {logs_pass}')
-            os.system(f'echo "{file_path} Zmiana rozmiaru i jakości" >> {logs_res}')
-        elif width < min_resolution[0] or height < min_resolution[1]:
-            os.system(f'convert -quality {quality}% {file_path} {file_path}{suffix}')
-            os.system(f'echo "{current_date}: Dokonano konwersji {file_path} do {file_path}{suffix} (bez zmiany rozmiarów)" >> {logs_pass}')
-            os.system(f'echo "{file_path} Zmiana jakości" >> {logs_res}')
-        else:
-            os.system(f'echo "{current_date}: Nie dokonano konwersji {file_path} - plik nie spełnia wymagań rozmiarowych." >> {logs_unchanged}')
-            os.system(f'echo "{file_path} Brak zmian" >> {logs_res}')
-
-    def conversion_with_replace_dry_run(width, height, min_resolution, min_resolution_input, quality, file_path, modification_time):
-        if width >= min_resolution[0] and height >= min_resolution[1]:
-            modification_time = os.path.getmtime(file_path)
-            os.system(f'echo "{current_date}: Dokonano konwersji {file_path} i nadpisano plik." >> {logs_pass}')
-            os.utime(file_path, (modification_time, modification_time))
-            os.system(f'echo "{file_path} Zmiana rozmiaru i jakości" >> {logs_res}')
-        elif width < min_resolution[0] or height < min_resolution[1]:
-            os.system(f'echo "{current_date}: Dokonano konwersji {file_path} i nadpisano plik (bez zmiany rozmiarów)." >> {logs_pass}')
-            os.system(f'echo "{file_path} Zmiana jakości" >> {logs_res}')
-        else:
-            os.system(f'echo "{current_date}: Nie dokonano konwersji {file_path} - plik nie spełnia wymagań rozmiarowych." >> {logs_unchanged}')
-            os.system(f'echo "{file_path} Brak zmian" >> {logs_res}')
-
-    def conversion_with_suffix_dry_run(width, height, min_resolution, min_resolution_input, quality, file_path, suffix):
-        if width >= min_resolution[0] and height >= min_resolution[1]:
-            os.system(f'echo "{current_date}: Dokonano konwersji {file_path} do {file_path}{suffix}" >> {logs_pass}')
-            os.system(f'echo "{file_path} Zmiana rozmiaru i jakości" >> {logs_res}')
-        elif width < min_resolution[0] or height < min_resolution[1]:
-            os.system(f'echo "{current_date}: Dokonano konwersji {file_path} do {file_path}{suffix} (bez zmiany rozmiarów)" >> {logs_pass}')
-            os.system(f'echo "{file_path} Zmiana jakości" >> {logs_res}')
-        else:
-            os.system(f'echo "{current_date}: Nie dokonano konwersji {file_path} - plik nie spełnia wymagań rozmiarowych." >> {logs_unchanged}')
-            os.system(f'echo "{file_path} Brak zmian" >> {logs_res}')
-
-    if replace == 1 and dryrun == 0:
-        conversion_with_replace(width, height, min_resolution, min_resolution_input, quality, file_path, modification_time)
-    elif replace == 0 and dryrun == 0:
-        conversion_with_suffix(width, height, min_resolution, min_resolution_input, quality, file_path, suffix)
-    elif replace == 1 and dryrun == 1:
-        conversion_with_replace_dry_run(width, height, min_resolution, min_resolution_input, quality, file_path, modification_time)
-    elif replace == 0 and dryrun == 1:
-        conversion_with_suffix_dry_run(width, height, min_resolution, min_resolution_input, quality, file_path, suffix)
-    else:
-        print('Niepoprawny argument dla --replace')
-
+            print('Niepoprawny argument dla --replace')
+        
 os.system(f'rm -rf /tmp/{year}-Jan-01-0000')
