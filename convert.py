@@ -125,9 +125,13 @@ for file_path in matched_files:
 modification_time = 0
 
 for file_path in matched_files:
-    identify_command = f'identify -format "%wx%h" {shlex.quote(file_path)}'
-    resolution = subprocess.check_output(identify_command, shell=True).decode().strip()
-    width, height = map(int, resolution.split('x'))
+    try:
+        identify_command = f'identify -format "%wx%h" {shlex.quote(file_path)}'
+        resolution = subprocess.check_output(identify_command, shell=True).decode().strip()
+        width, height = map(int, resolution.split('x'))
+    except subprocess.CalledProcessError as e:
+        print(f'Error processing file: {file_path}. Skipping...')
+        continue
     def conversion_with_replace(width, height, min_resolution, min_resolution_input, quality, file_path, modification_time):
         if width >= min_resolution[0] and height >= min_resolution[1]:
             modification_time = os.path.getmtime(file_path)
