@@ -10,6 +10,9 @@ from PIL import Image # type: ignore
 from pathlib import Path
 from datetime import datetime
 
+# Zwiększenie limitu dla PIL
+Image.MAX_IMAGE_PIXELS = 400000000
+
 # Wyczyszczenie logów sprawdzających z poprzedniego run'a
 os.system(f'rm -rf /var/log/conversion/logs_date_verification')
 os.system(f'rm -rf /var/log/conversion/logs_accuracy_verification')
