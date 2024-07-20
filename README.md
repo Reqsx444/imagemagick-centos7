@@ -1,4 +1,4 @@
-# Image Conversion Script Description
+# Image Conversion Script Description - CentOS-like only
 ## Introduction
 This script is designed to process images in a specified directory, allowing for changes in image quality and resolution. Additionally, the script verifies the integrity of images and generates appropriate logs regarding the operations performed. The script can be used with various options and flags, allowing customization to meet specific needs.
 
