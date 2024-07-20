@@ -11,8 +11,8 @@ Result Logging: Generates logs regarding processed images and any errors encount
 
 ## Usage
 ### Prerequisites :
-- Python 3 \
-- Libraries: os, time, shlex, imghdr, argparse, subprocess, importlib.util, PIL (Python Imaging Library) \
+- Python 3
+- Libraries: os, time, shlex, imghdr, argparse, subprocess, importlib.util, PIL (Python Imaging Library)
 - ImageMagick
 
 ## Available Flags
