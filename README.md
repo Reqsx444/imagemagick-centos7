@@ -24,4 +24,6 @@ Result Logging: Generates logs regarding processed images and any errors encount
 -p, --path (str): Path to the directory with images. \
 -d, --dryrun (int): Run in test mode (1=Yes, 0=No). Default is 0.
 ## Example Usage
+```
 python image_conversion.py -q 85 -y 2020 -r 1920x1080 -c 1 -p /path/to/directory
+```
